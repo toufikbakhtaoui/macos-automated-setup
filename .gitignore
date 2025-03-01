@@ -1,0 +1,5 @@
+.config/*/cache/
+.config/**/Cache/
+**/node_modules/
+**/.DS_Store
+
