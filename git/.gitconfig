@@ -1,0 +1,21 @@
+[user]
+    name = toufik Bakhtaoui
+    email = toufik.bakhtaoui@gmail.com
+[core]
+    editor = nvim
+    excludesfile = ~/.gitignore_global
+[color]
+    ui = auto
+[init]
+    defaultBranch = main
+[pull]
+    rebase = false
+[push]
+    default = current
+[alias]
+    st = status
+    co = checkout
+    br = branch
+    ci = commit
+    df = diff
+    lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
