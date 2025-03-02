@@ -18,3 +18,8 @@ export PATH="$HOME/bin:$PATH"
 
 # Zoxide
 eval "$(zoxide init zsh)"
+
+# ---- Eza (better ls) -----
+alias ls="eza --icons=always"
+export PATH="/usr/local/opt/openjdk@21/bin:$PATH"
+export JAVA_HOME=$(/usr/libexec/java_home)
