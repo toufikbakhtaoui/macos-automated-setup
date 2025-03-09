@@ -86,6 +86,14 @@ for package in "${STOW_PACKAGES[@]}"; do
   stow -v --restow -d "$DOTFILES_DIR" -t "$HOME" "$package" || { echo "${RED}Error deploying $package.${NC}"; }
 done
 
+# Install LazyVim after stowing nvim configuration
+echo -e "${BLUE}Installing LazyVim...${NC}"
+# Clone LazyVim starter configuration
+git clone https://github.com/LazyVim/starter "$DOTFILES_DIR/nvim/.config/nvim"
+# Remove the .git directory to avoid conflicts with user's own git repo
+rm -rf "$DOTFILES_DIR/nvim/.config/nvim/.git"
+echo -e "${GREEN}LazyVim installed successfully!${NC}"
+
 # Reload shell configuration
 echo -e "${BLUE}Reloading your shell to apply changes...${NC}"
 if [[ -f ~/.zshrc ]]; then
