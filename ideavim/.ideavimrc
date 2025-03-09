@@ -44,6 +44,12 @@ set clipboard=unnamedplus
 " set the line number
 set number relativenumber
 
+" set the icon color as gray
+set ideastatusicon=gray
+
+" set highlight yank 
+set highlightedyank
+
 " set the tab size to 4
 set tabstop=4
 
