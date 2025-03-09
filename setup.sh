@@ -94,6 +94,12 @@ git clone https://github.com/LazyVim/starter "$DOTFILES_DIR/nvim/.config/nvim"
 rm -rf "$DOTFILES_DIR/nvim/.config/nvim/.git"
 echo -e "${GREEN}LazyVim installed successfully!${NC}"
 
+# Install TPM (Tmux Plugin Manager)
+echo -e "${BLUE}Installing Tmux plugins manager...${NC}"
+git clone https://github.com/tmux-plugins/tpm "$DOTFILES_DIR/tmux/plugins/tpm"
+rm -rf "$DOTFILES_DIR/tmux/plugins/tpm/.git"
+echo -e "${GREEN}Tmux plugins manager installed successfully!${NC}"
+
 # Reload shell configuration
 echo -e "${BLUE}Reloading your shell to apply changes...${NC}"
 if [[ -f ~/.zshrc ]]; then
