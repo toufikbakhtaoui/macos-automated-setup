@@ -1,6 +1,3 @@
-# Brewfile
-tap "homebrew/cask"
-
 # Applications Homebrew
 brew "git"
 brew "tmux"
