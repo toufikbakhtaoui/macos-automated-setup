@@ -1,6 +1,8 @@
 #!/bin/bash
 
-# Colors for messages
+# ============================
+# Colors for terminal messages
+# ============================
 GREEN="\033[0;32m"
 BLUE="\033[0;34m"
 RED="\033[0;31m"
@@ -8,106 +10,136 @@ NC="\033[0m" # No Color
 
 echo -e "${BLUE}=== Automated macOS Installation and Configuration ===${NC}"
 
-# Fixed git repository URL for dotfiles
+# ===================================================
+# Ensure Xcode Command Line Tools are installed
+# ===================================================
+if ! xcode-select -p &>/dev/null; then
+  echo -e "${BLUE}🔧 Xcode Command Line Tools not found. Installing...${NC}"
+  xcode-select --install
+
+  echo -e "${BLUE}⏳ Waiting for Command Line Tools installation to complete...${NC}"
+  until xcode-select -p &>/dev/null; do
+    sleep 5
+  done
+  echo -e "${GREEN}✅ Command Line Tools installed.${NC}"
+else
+  echo -e "${GREEN}✅ Command Line Tools already installed.${NC}"
+fi
+
+# ===================================================
+# Clone the dotfiles repository
+# ===================================================
 REPO_URL="git@github.com:toufikbakhtaoui/dotfiles.git"
 DOTFILES_DIR="$HOME/dotfiles"
 
-# Clone the dotfiles git repository
-echo -e "${BLUE}Cloning dotfiles repository from $REPO_URL...${NC}"
-git clone "$REPO_URL" "$DOTFILES_DIR" || {
-  echo -e "${RED}Error cloning repository.${NC}"
-  exit 1
-}
+if [[ -d "$DOTFILES_DIR" ]]; then
+  echo -e "${GREEN}✅ Dotfiles directory already exists. Skipping clone.${NC}"
+else
+  echo -e "${BLUE}📦 Cloning dotfiles from $REPO_URL...${NC}"
+  git clone "$REPO_URL" "$DOTFILES_DIR" || {
+    echo -e "${RED}❌ Failed to clone dotfiles repo. Check SSH access.${NC}"
+    exit 1
+  }
+fi
 
-# Move to the dotfiles directory
-cd "$DOTFILES_DIR"
+cd "$DOTFILES_DIR" || { echo -e "${RED}❌ Cannot access dotfiles directory.${NC}"; exit 1; }
 
-# Install Homebrew if not present
+# ===================================================
+# Install Homebrew
+# ===================================================
 if ! command -v brew &>/dev/null; then
-  echo -e "${BLUE}Installing Homebrew...${NC}"
+  echo -e "${BLUE}📦 Installing Homebrew...${NC}"
   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
-  # Add Homebrew to PATH for this session
   eval "$(/opt/homebrew/bin/brew shellenv)"
-
-  # Add Homebrew to PATH permanently based on the shell being used
-  if [[ "$SHELL" == */zsh ]]; then
-    echo -e 'eval "$(/opt/homebrew/bin/brew shellenv)"' >>"$HOME/.zprofile"
-  else
-    echo -e 'eval "$(/opt/homebrew/bin/brew shellenv)"' >>"$HOME/.bash_profile"
-  fi
+  [[ "$SHELL" == */zsh ]] && echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> "$HOME/.zprofile"
+  [[ "$SHELL" == */bash ]] && echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> "$HOME/.bash_profile"
 else
-  echo -e "${GREEN}Homebrew is already installed.${NC}"
+  echo -e "${GREEN}✅ Homebrew is already installed.${NC}"
 fi
 
-# Install packages via Homebrew
-echo -e "${BLUE}Installing applications from Brewfile...${NC}"
+# ===================================================
+# Install applications from Brewfile
+# ===================================================
+echo -e "${BLUE}📦 Installing packages from Brewfile...${NC}"
 brew bundle || {
-  echo -e "${RED}Error installing applications.${NC}"
+  echo -e "${RED}❌ Failed to install Brewfile packages.${NC}"
   exit 1
 }
 
-# Install GNU Stow if not present
+# ===================================================
+# Ensure GNU Stow is installed
+# ===================================================
 if ! command -v stow &>/dev/null; then
-  echo -e "${BLUE}Installing GNU Stow...${NC}"
+  echo -e "${BLUE}📦 Installing GNU Stow...${NC}"
   brew install stow
+else
+  echo -e "${GREEN}✅ GNU Stow is already installed.${NC}"
 fi
 
-# Apply macOS system configurations
-echo -e "${BLUE}Applying macOS settings...${NC}"
+# ===================================================
+# Apply macOS system preferences
+# ===================================================
+echo -e "${BLUE}🛠️ Applying macOS system defaults...${NC}"
 chmod +x "$DOTFILES_DIR/macos-defaults.sh"
 "$DOTFILES_DIR/macos-defaults.sh" || {
-  echo -e "${RED}Error applying macOS settings.${NC}"
+  echo -e "${RED}❌ Failed to apply macOS settings.${NC}"
   exit 1
 }
 
-# Deploy dotfiles with Stow
-echo -e "${BLUE}Deploying dotfiles with Stow...${NC}"
+# ===================================================
+# Deploy dotfiles using GNU Stow
+# ===================================================
+echo -e "${BLUE}🔗 Deploying dotfiles using Stow...${NC}"
 
-# Discover and store all directories that are not hidden and are not files
 STOW_PACKAGES=()
 for dir in "$DOTFILES_DIR"/*/; do
   dir_name=$(basename "$dir")
-  # Exclude hidden or special directories
-  if [[ ! "$dir_name" == .* ]] && [[ "$dir_name" != "node_modules" ]] && [[ "$dir_name" != ".git" ]]; then
-    STOW_PACKAGES+=("$dir_name")
-  fi
+  [[ "$dir_name" =~ ^(\.|.git|node_modules)$ ]] && continue
+  STOW_PACKAGES+=("$dir_name")
 done
 
-# If no package is found
-if [ ${#STOW_PACKAGES[@]} -eq 0 ]; then
-  echo -e "${RED}No directory for Stow was found.${NC}"
+if [[ ${#STOW_PACKAGES[@]} -eq 0 ]]; then
+  echo -e "${RED}❌ No directories found for stow.${NC}"
   exit 1
 fi
 
-# Apply Stow to all packages
 for package in "${STOW_PACKAGES[@]}"; do
-  echo -e "${GREEN}Deploying dotfiles for: $package${NC}"
-  stow -v --restow -d "$DOTFILES_DIR" -t "$HOME" "$package" || { echo "${RED}Error deploying $package.${NC}"; }
+  echo -e "${GREEN}→ Stowing: $package${NC}"
+  stow -v --restow -d "$DOTFILES_DIR" -t "$HOME" "$package" || {
+    echo -e "${RED}❌ Error while stowing $package${NC}"
+  }
 done
 
-# Install LazyVim after stowing nvim configuration
-echo -e "${BLUE}Installing LazyVim...${NC}"
-# Clone LazyVim starter configuration
+# ===================================================
+# Install LazyVim after stowing nvim config
+# ===================================================
+echo -e "${BLUE}⚙️ Installing LazyVim configuration...${NC}"
 git clone https://github.com/LazyVim/starter "$DOTFILES_DIR/nvim/.config/nvim"
-# Remove the .git directory to avoid conflicts with user's own git repo
 rm -rf "$DOTFILES_DIR/nvim/.config/nvim/.git"
-echo -e "${GREEN}LazyVim installed successfully!${NC}"
+echo -e "${GREEN}✅ LazyVim installed.${NC}"
 
-# Install TPM (Tmux Plugin Manager)
-echo -e "${BLUE}Installing Tmux plugins manager...${NC}"
+# ===================================================
+# Install Tmux Plugin Manager (TPM)
+# ===================================================
+echo -e "${BLUE}⚙️ Installing Tmux Plugin Manager (TPM)...${NC}"
 git clone https://github.com/tmux-plugins/tpm "$DOTFILES_DIR/tmux/plugins/tpm"
 rm -rf "$DOTFILES_DIR/tmux/plugins/tpm/.git"
-echo -e "${GREEN}Tmux plugins manager installed successfully!${NC}"
+echo -e "${GREEN}✅ TPM installed.${NC}"
 
-# Reload shell configuration
-echo -e "${BLUE}Reloading your shell to apply changes...${NC}"
-if [[ -f ~/.zshrc ]]; then
-  source ~/.zshrc 2>/dev/null || echo "${RED}Unable to reload ~/.zshrc${NC}"
-elif [[ -f ~/.bashrc ]]; then
-  source ~/.bashrc 2>/dev/null || echo "${RED}Unable to reload ~/.bashrc${NC}"
+# ===================================================
+# Reload the shell config
+# ===================================================
+echo -e "${BLUE}🔄 Reloading shell configuration...${NC}"
+if [[ -f "$HOME/.zshrc" ]]; then
+  source "$HOME/.zshrc" || echo -e "${RED}⚠️ Failed to source .zshrc${NC}"
+elif [[ -f "$HOME/.bashrc" ]]; then
+  source "$HOME/.bashrc" || echo -e "${RED}⚠️ Failed to source .bashrc${NC}"
 fi
 
-echo -e "${GREEN}=== Installation completed successfully! ===${NC}"
-echo -e "${GREEN}Your macOS is configured with all your settings and applications.${NC}"
-echo -e "${BLUE}Note: Some changes may require a restart to be applied.${NC}"
+# ===================================================
+# Done!
+# ===================================================
+echo -e "${GREEN}🎉 Setup completed successfully!${NC}"
+echo -e "${BLUE}📝 Your system is now configured with your dotfiles and tools.${NC}"
+echo -e "${BLUE}🔁 You may want to restart your terminal or your Mac to finalize some settings.${NC}"
