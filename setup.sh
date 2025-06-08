@@ -9,7 +9,7 @@ NC="\033[0m" # No Color
 echo -e "${BLUE}=== Automated macOS Installation and Configuration ===${NC}"
 
 # Fixed git repository URL for dotfiles
-REPO_URL="https://github.com/toufikbakhtaoui/dotfiles.git"
+REPO_URL="git@github.com:toufikbakhtaoui/dotfiles.git"
 DOTFILES_DIR="$HOME/dotfiles"
 
 # Clone the dotfiles git repository
