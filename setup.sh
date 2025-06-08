@@ -1,91 +1,90 @@
-#!/bin/bash
+#!/usr/bin/env zsh
 
-# ============================
-# Colors for terminal messages
-# ============================
+# ─────────────────────────────────────────────
+# Dotfiles macOS Bootstrap Script (Zsh version)
+# Author: Toufik Bakhtaoui
+# Repo: https://github.com/toufikbakhtaoui/dotfiles
+# ─────────────────────────────────────────────
+
+# Colors
 GREEN="\033[0;32m"
 BLUE="\033[0;34m"
 RED="\033[0;31m"
 NC="\033[0m" # No Color
 
-echo -e "${BLUE}=== Automated macOS Installation and Configuration ===${NC}"
+echo "${BLUE}=== Automated macOS Installation and Configuration ===${NC}"
 
-# ===================================================
-# Ensure Xcode Command Line Tools are installed
-# ===================================================
+# ─────────────────────────────────────────────
+# Keep sudo alive
+# ─────────────────────────────────────────────
+sudo -v
+while true; do sudo -n true; sleep 60; kill -0 "$$" || exit; done 2>/dev/null &
+
+# ─────────────────────────────────────────────
+# Prerequisites
+# ─────────────────────────────────────────────
 if ! xcode-select -p &>/dev/null; then
-  echo -e "${BLUE}🔧 Xcode Command Line Tools not found. Installing...${NC}"
+  echo "${BLUE}🔧 Installing Xcode Command Line Tools...${NC}"
   xcode-select --install
-
-  echo -e "${BLUE}⏳ Waiting for Command Line Tools installation to complete...${NC}"
-  until xcode-select -p &>/dev/null; do
-    sleep 5
-  done
-  echo -e "${GREEN}✅ Command Line Tools installed.${NC}"
-else
-  echo -e "${GREEN}✅ Command Line Tools already installed.${NC}"
+  echo "${RED}⚠️ Please install the tools from the popup, then re-run this script.${NC}"
+  exit 1
 fi
 
-# ===================================================
-# Clone the dotfiles repository
-# ===================================================
+if ! dscl . -read /Groups/admin GroupMembership | grep -q "\b$USER\b"; then
+  echo "${RED}❌ User '$USER' is not admin. Add with:${NC}"
+  echo "   sudo dseditgroup -o edit -a $USER -t user admin"
+  exit 1
+fi
+
+# ─────────────────────────────────────────────
+# Homebrew installation
+# ─────────────────────────────────────────────
+if ! command -v brew &>/dev/null; then
+  echo "${BLUE}📦 Installing Homebrew...${NC}"
+  NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+  if [[ -x "/opt/homebrew/bin/brew" ]]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+    echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> "$HOME/.zprofile"
+  elif [[ -x "/usr/local/bin/brew" ]]; then
+    eval "$(/usr/local/bin/brew shellenv)"
+    echo 'eval "$(/usr/local/bin/brew shellenv)"' >> "$HOME/.zprofile"
+  fi
+else
+  echo "${GREEN}✅ Homebrew is already installed.${NC}"
+  eval "$(brew shellenv)"
+fi
+
+# ─────────────────────────────────────────────
+# Clone dotfiles
+# ─────────────────────────────────────────────
 REPO_URL="git@github.com:toufikbakhtaoui/dotfiles.git"
 DOTFILES_DIR="$HOME/dotfiles"
 
-if [[ -d "$DOTFILES_DIR" ]]; then
-  echo -e "${GREEN}✅ Dotfiles directory already exists. Skipping clone.${NC}"
+if [[ -d "$DOTFILES_DIR/.git" ]]; then
+  echo "${BLUE}🔁 Updating existing dotfiles...${NC}"
+  cd "$DOTFILES_DIR" && git pull
 else
-  echo -e "${BLUE}📦 Cloning dotfiles from $REPO_URL...${NC}"
+  echo "${BLUE}📥 Cloning dotfiles...${NC}"
   git clone "$REPO_URL" "$DOTFILES_DIR" || {
-    echo -e "${RED}❌ Failed to clone dotfiles repo. Check SSH access.${NC}"
+    echo "${RED}❌ Failed to clone dotfiles.${NC}"
     exit 1
   }
 fi
+cd "$DOTFILES_DIR"
 
-cd "$DOTFILES_DIR" || { echo -e "${RED}❌ Cannot access dotfiles directory.${NC}"; exit 1; }
-
-# ===================================================
-# Install Homebrew
-# ===================================================
-if ! command -v brew &>/dev/null; then
-  echo -e "${BLUE}📦 Installing Homebrew...${NC}"
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-  eval "$(/opt/homebrew/bin/brew shellenv)"
-  [[ "$SHELL" == */zsh ]] && echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> "$HOME/.zprofile"
-  [[ "$SHELL" == */bash ]] && echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> "$HOME/.bash_profile"
+# ─────────────────────────────────────────────
+# Install from Brewfile
+# ─────────────────────────────────────────────
+if [[ -f "$DOTFILES_DIR/Brewfile" ]]; then
+  echo "${BLUE}📦 Installing packages from Brewfile...${NC}"
+  brew bundle --file="$DOTFILES_DIR/Brewfile" || {
+    echo "${RED}❌ Brew bundle failed.${NC}"
+    exit 1
+  }
 else
-  echo -e "${GREEN}✅ Homebrew is already installed.${NC}"
+  echo "${RED}❌ Brewfile not found.${NC}"
 fi
-
-# ===================================================
-# Install applications from Brewfile
-# ===================================================
-echo -e "${BLUE}📦 Installing packages from Brewfile...${NC}"
-brew bundle || {
-  echo -e "${RED}❌ Failed to install Brewfile packages.${NC}"
-  exit 1
-}
-
-# ===================================================
-# Ensure GNU Stow is installed
-# ===================================================
-if ! command -v stow &>/dev/null; then
-  echo -e "${BLUE}📦 Installing GNU Stow...${NC}"
-  brew install stow
-else
-  echo -e "${GREEN}✅ GNU Stow is already installed.${NC}"
-fi
-
-# ===================================================
-# Apply macOS system preferences
-# ===================================================
-echo -e "${BLUE}🛠️ Applying macOS system defaults...${NC}"
-chmod +x "$DOTFILES_DIR/macos-defaults.sh"
-"$DOTFILES_DIR/macos-defaults.sh" || {
-  echo -e "${RED}❌ Failed to apply macOS settings.${NC}"
-  exit 1
-}
 
 # ===================================================
 # Deploy dotfiles using GNU Stow
@@ -111,35 +110,37 @@ for package in "${STOW_PACKAGES[@]}"; do
   }
 done
 
-# ===================================================
-# Install LazyVim after stowing nvim config
-# ===================================================
-echo -e "${BLUE}⚙️ Installing LazyVim configuration...${NC}"
-git clone https://github.com/LazyVim/starter "$DOTFILES_DIR/nvim/.config/nvim"
-rm -rf "$DOTFILES_DIR/nvim/.config/nvim/.git"
-echo -e "${GREEN}✅ LazyVim installed.${NC}"
-
-# ===================================================
-# Install Tmux Plugin Manager (TPM)
-# ===================================================
-echo -e "${BLUE}⚙️ Installing Tmux Plugin Manager (TPM)...${NC}"
-git clone https://github.com/tmux-plugins/tpm "$DOTFILES_DIR/tmux/plugins/tpm"
-rm -rf "$DOTFILES_DIR/tmux/plugins/tpm/.git"
-echo -e "${GREEN}✅ TPM installed.${NC}"
-
-# ===================================================
-# Reload the shell config
-# ===================================================
-echo -e "${BLUE}🔄 Reloading shell configuration...${NC}"
-if [[ -f "$HOME/.zshrc" ]]; then
-  source "$HOME/.zshrc" || echo -e "${RED}⚠️ Failed to source .zshrc${NC}"
-elif [[ -f "$HOME/.bashrc" ]]; then
-  source "$HOME/.bashrc" || echo -e "${RED}⚠️ Failed to source .bashrc${NC}"
+# ─────────────────────────────────────────────
+# macOS defaults
+# ─────────────────────────────────────────────
+if [[ -f "$DOTFILES_DIR/macos-defaults.sh" ]]; then
+  echo "${BLUE}⚙️ Applying macOS defaults...${NC}"
+  zsh "$DOTFILES_DIR/macos-defaults.sh"
 fi
 
-# ===================================================
-# Done!
-# ===================================================
-echo -e "${GREEN}🎉 Setup completed successfully!${NC}"
-echo -e "${BLUE}📝 Your system is now configured with your dotfiles and tools.${NC}"
-echo -e "${BLUE}🔁 You may want to restart your terminal or your Mac to finalize some settings.${NC}"
+# ─────────────────────────────────────────────
+# LazyVim
+# ─────────────────────────────────────────────
+echo "${BLUE}🧠 Installing LazyVim config...${NC}"
+git clone https://github.com/LazyVim/starter "$DOTFILES_DIR/nvim/.config/nvim"
+rm -rf "$DOTFILES_DIR/nvim/.config/nvim/.git"
+
+# ─────────────────────────────────────────────
+# TPM (Tmux Plugin Manager)
+# ─────────────────────────────────────────────
+echo "${BLUE}🔌 Installing TPM...${NC}"
+git clone https://github.com/tmux-plugins/tpm "$DOTFILES_DIR/tmux/plugins/tpm"
+rm -rf "$DOTFILES_DIR/tmux/plugins/tpm/.git"
+
+# ─────────────────────────────────────────────
+# Zsh setup
+# ─────────────────────────────────────────────
+echo "${BLUE}⚙️ Applying Zsh settings...${NC}"
+zsh "$DOTFILES_DIR/scripts/setup-zsh.sh" || {
+  echo "${RED}❌ Error applying Zsh settings.${NC}"
+}
+
+# ─────────────────────────────────────────────
+# Done
+# ─────────────────────────────────────────────
+echo "${GREEN}✅ Setup complete. Restart terminal or macOS to apply changes.${NC}"
