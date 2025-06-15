@@ -58,8 +58,8 @@ fi
 # ─────────────────────────────────────────────
 # Clone dotfiles
 # ─────────────────────────────────────────────
-REPO_URL="git@github.com:toufikbakhtaoui/dotfiles.git"
-DOTFILES_DIR="$HOME/dotfiles"
+REPO_URL="git@github.com:toufikbakhtaoui/macos-automated-setup.git"
+DOTFILES_DIR="$HOME/macos-automated-setup"
 
 if [[ -d "$DOTFILES_DIR/.git" ]]; then
   echo "${BLUE}🔁 Updating existing dotfiles...${NC}"
@@ -92,7 +92,7 @@ fi
 echo -e "${BLUE}🔗 Deploying dotfiles using Stow...${NC}"
 
 STOW_PACKAGES=()
-for dir in "$DOTFILES_DIR"/*/; do
+for dir in "$DOTFILES_DIR/dotfiles"/*/; do
   dir_name=$(basename "$dir")
   [[ "$dir_name" =~ ^(\.|.git|node_modules)$ ]] && continue
   STOW_PACKAGES+=("$dir_name")
@@ -105,7 +105,10 @@ fi
 
 for package in "${STOW_PACKAGES[@]}"; do
   echo -e "${GREEN}→ Stowing: $package${NC}"
-  stow -v --restow -d "$DOTFILES_DIR" -t "$HOME" "$package" || {
+  # Forcefully remove conflicts first
+  stow -v --delete -d "$DOTFILES_DIR/dotfiles" -t "$HOME" "$package" 2>/dev/null || true
+  # Then stow normally
+  stow -v --restow -d "$DOTFILES_DIR/dotfiles" -t "$HOME" "$package" || {
     echo -e "${RED}❌ Error while stowing $package${NC}"
   }
 done
@@ -113,24 +116,24 @@ done
 # ─────────────────────────────────────────────
 # macOS defaults
 # ─────────────────────────────────────────────
-if [[ -f "$DOTFILES_DIR/macos-defaults.sh" ]]; then
+if [[ -f "$DOTFILES_DIR/scripts/macos-defaults.sh" ]]; then
   echo "${BLUE}⚙️ Applying macOS defaults...${NC}"
-  zsh "$DOTFILES_DIR/macos-defaults.sh"
+  zsh "$DOTFILES_DIR/scripts/macos-defaults.sh"
 fi
 
 # ─────────────────────────────────────────────
 # LazyVim
 # ─────────────────────────────────────────────
 echo "${BLUE}🧠 Installing LazyVim config...${NC}"
-git clone https://github.com/LazyVim/starter "$DOTFILES_DIR/nvim/.config/nvim"
-rm -rf "$DOTFILES_DIR/nvim/.config/nvim/.git"
+git clone https://github.com/LazyVim/starter "$DOTFILES_DIR/dotfiles/nvim/.config/nvim"
+rm -rf "$DOTFILES_DIR/dotfiles/nvim/.config/nvim/.git"
 
 # ─────────────────────────────────────────────
 # TPM (Tmux Plugin Manager)
 # ─────────────────────────────────────────────
 echo "${BLUE}🔌 Installing TPM...${NC}"
-git clone https://github.com/tmux-plugins/tpm "$DOTFILES_DIR/tmux/plugins/tpm"
-rm -rf "$DOTFILES_DIR/tmux/plugins/tpm/.git"
+git clone https://github.com/tmux-plugins/tpm "$DOTFILES_DIR/dotfiles/tmux/plugins/tpm"
+rm -rf "$DOTFILES_DIR/dotfiles/tmux/plugins/tpm/.git"
 
 # ─────────────────────────────────────────────
 # Zsh setup
