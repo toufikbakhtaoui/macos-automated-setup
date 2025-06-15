@@ -86,19 +86,6 @@ else
   echo "${RED}❌ Brewfile not found.${NC}"
 fi
 
-# ─────────────────────────────────────────────
-# Clean up existing stow links
-# ─────────────────────────────────────────────
-echo "${BLUE}🧹 Cleaning up existing stow links...${NC}"
-  
-  for dir in "$DOTFILES_DIR/dotfiles"/*/; do
-    dir_name=$(basename "$dir")
-    [[ "$dir_name" =~ ^(\.|.git|node_modules)$ ]] && continue
-    
-    echo "${BLUE}  → Unstowing: $dir_name${NC}"
-    stow -v --delete -d "$DOTFILES_DIR/dotfiles" -t "$HOME" "$dir_name" 2>/dev/null || true
-  done
-
 # ===================================================
 # Deploy dotfiles using GNU Stow
 # ===================================================
@@ -118,7 +105,10 @@ fi
 
 for package in "${STOW_PACKAGES[@]}"; do
   echo -e "${GREEN}→ Stowing: $package${NC}"
-  stow -v --restow --adopt -d "$DOTFILES_DIR/dotfiles" -t "$HOME" "$package" || {
+  # Forcefully remove conflicts first
+  stow -v --delete -d "$DOTFILES_DIR/dotfiles" -t "$HOME" "$package" 2>/dev/null || true
+  # Then stow normally
+  stow -v --restow -d "$DOTFILES_DIR/dotfiles" -t "$HOME" "$package" || {
     echo -e "${RED}❌ Error while stowing $package${NC}"
   }
 done
