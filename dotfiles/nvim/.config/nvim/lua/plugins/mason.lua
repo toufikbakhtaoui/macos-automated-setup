@@ -36,15 +36,10 @@ return {
             -- servers for mason to install
             ensure_installed = {
                 "lua_ls",
-                -- "ts_ls", currently using a ts plugin
+                "ansiblels",
+                "dockerls",
+                "yamlls",
                 "html",
-                "cssls",
-                "tailwindcss",
-                "gopls",
-                "emmet_ls",
-                "emmet_language_server",
-                -- "eslint",
-                "marksman",
             },
 
         })
