@@ -9,6 +9,7 @@ brew "zoxide"
 brew "maven"
 brew "neovim"
 brew "eza"
+brew "node"
 
 
 # Applications Cask
@@ -25,3 +26,4 @@ cask "sublime-text"
 cask "synologyassistant"
 cask "microsoft-outlook"
 cask "brave-browser"
+cask "netdownloadhelpercoapp"
